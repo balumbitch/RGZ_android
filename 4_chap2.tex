@@ -1,0 +1,126 @@
+\chapter{Практическая часть}
+
+\section{Создание интерфейса пользователя}
+
+В приложении реализован простой и интуитивно понятный интерфейс, состоящий из следующих компонентов:
+
+\begin{itemize}
+    \item \textbf{TextView} для отображения текущего трека.
+    \item \textbf{SeekBar} для визуального отображения и управления прогрессом воспроизведения.
+    \item \textbf{Button} для управления воспроизведением: Play/Pause, Next, Back, Cycle.
+    \item \textbf{Button} для управления громкостью: Volume Up, Volume Down.
+\end{itemize}
+
+Все компоненты интерфейса размещены в XML-файле \texttt{activity\_mp3.xml}. Вёрстка выполнена с использованием ConstraintLayout для гибкости и адаптивности интерфейса.
+
+\section{Загрузка и обработка музыкальных файлов}
+
+В проекте реализовано два метода для загрузки музыкальных файлов:
+
+\begin{enumerate}
+    \item \textbf{Из хранилища устройства:}  
+    Используется \texttt{ContentResolver} для сканирования медиафайлов в директории \texttt{/Music}. Файлы фильтруются по расширению \texttt{.mp3}, после чего их пути сохраняются в списке \texttt{songs}.
+
+    \item \textbf{Из директории /Music:}  
+    Реализована проверка на существование директории \texttt{/Music} и считывание файлов напрямую через \texttt{File} API.
+\end{enumerate}
+
+Пример загрузки файла из медиа-хранилища:
+
+\begin{lstlisting}[language=Kotlin, caption={Загрузка музыки из MediaStore}]
+private fun loadMusicFromMediaStore() {
+    val uri: Uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+    val projection = arrayOf(
+        MediaStore.Audio.Media.DATA,
+        MediaStore.Audio.Media.TITLE
+    )
+    val selection = MediaStore.Audio.Media.IS_MUSIC + "!= 0"
+    
+    contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
+        while (cursor.moveToNext()) {
+            val path = cursor.getString(0)
+            val title = cursor.getString(1)
+            songs.add(path)
+            songTitles.add(title)
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Инициализация и воспроизведение аудио}
+
+Для воспроизведения MP3 используется класс \texttt{MediaPlayer}. В процессе инициализации создаётся новый экземпляр \texttt{MediaPlayer} и устанавливается путь к текущему треку:
+
+\begin{lstlisting}[language=Kotlin, caption={Инициализация MediaPlayer}]
+private fun initializeMediaPlayer() {
+    if (songs.isNotEmpty()) {
+        mediaPlayer = MediaPlayer()
+        mediaPlayer.setDataSource(songs[currentSongIndex])
+        mediaPlayer.prepare()
+        updateSongTitle()
+        setupSeekBar()
+        setupButtons()
+    }
+}
+\end{lstlisting}
+
+\section{Реализация управления воспроизведением}
+
+Основные функции управления воспроизведением:
+
+\begin{itemize}
+\item \textbf{Play/Pause:} Переключает состояние воспроизведения и обновляет текст кнопки.
+\item \textbf{Next/Back:} Изменяет индекс текущего трека и перезапускает воспроизведение.
+\item \textbf{Cycle:} Включает/выключает режим цикличного воспроизведения.
+\item \textbf{SeekBar:} Отслеживает текущую позицию трека и позволяет перематывать воспроизведение.
+\end{itemize}
+
+Пример реализации кнопки \texttt{Play/Pause}:
+
+\begin{lstlisting}[language=Kotlin, caption={Обработка нажатия кнопки Play/Pause}]
+play.setOnClickListener {
+    if (!mediaPlayer.isPlaying) {
+        mediaPlayer.start()
+        play.text = "Pause"
+    } else {
+        mediaPlayer.pause()
+        play.text = "Play"
+    }
+}
+\end{lstlisting}
+
+\section{Обработка разрешений}
+
+Для доступа к музыкальным файлам приложение запрашивает разрешение на чтение внешнего хранилища:
+
+\begin{lstlisting}[language=Kotlin, caption={Проверка разрешений}]
+private fun checkPermission() {
+    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
+    when {
+        ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED -> {
+            loadMusic()
+        }
+        else -> {
+            requestPermissionLauncher.launch(permission)
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Тестирование и отладка}
+
+В ходе тестирования было проверено:
+
+\begin{itemize}
+\item Корректность загрузки музыкальных файлов из \texttt{/Music}.
+\item Корректная работа кнопок управления воспроизведением.
+\item Отображение текущего трека и его позиции на \texttt{SeekBar}.
+\item Обработка ошибок при отсутствии файлов или отсутствии разрешений.
+\end{itemize}
+
+Таким образом, приложение реализует все основные функции MP3 плеера, включая воспроизведение, переключение треков, регулировку громкости и цикличное воспроизведение.
